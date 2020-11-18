@@ -9,4 +9,4 @@ npx prisma migrate up --experimental
 
 npx prisma generate
 
-npx prisma studio --experimental
+npx prisma studio
