@@ -2,6 +2,34 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const { APP_SECRET, getUserId } = require('../utils')
 
+async function vote(parent, args, context, info){
+
+  const userId = getUserId(context)
+
+  const vote = await context.prisma.vote.findOne({
+    where: {
+      linkId_userId: {
+        linkId: Number(args.linkId),
+        userId: userId
+      }
+    }
+  })
+
+  if (Boolean(vote)) {
+    throw new Error(`Already voted for the link: ${args.linkId}`)
+  }
+
+  const newVote = await context.prisma.vote.create({
+    data: {
+      user: { connect: { id: userId } },
+      link: { connect: { id: Number(args.linkId) }},
+    }
+  })
+  await context.pubsub.publish("NEW_VOTE", newVote)
+
+  return newVote
+}
+
 async function signup(parent, args, context, info) {
 
     const password = await bcrypt.hash(args.password, 10)
@@ -43,22 +71,25 @@ async function login(parent, args, context, info) {
   }
 
 
-function post(parent, args, context, info) {
+async function post(parent, args, context, info) {
     
     const userId = getUserId(context)
   
-    return context.prisma.link.create({
+    const newLink = await context.prisma.link.create({
       data: {
         url: args.url,
         description: args.description,
         postedBy: { connect: { id: userId } },
       }
     })
+    await context.pubsub.publish("NEW_LINK", newLink)
+
+    return newLink
   }
 
-function updateLink(parent, args, context)
+async function updateLink(parent, args, context)
 {
-    return context.prisma.link.update({
+    return await context.prisma.link.update({
         where: {
             id: Number(args.id)
         },
@@ -69,9 +100,9 @@ function updateLink(parent, args, context)
     })
 }
 
-function deleteLink(parent, args, context)
+async function deleteLink(parent, args, context)
 {
-    return context.prisma.link.delete({
+    return await context.prisma.link.delete({
         where: {
             id : Number(args.id)
         }
@@ -85,4 +116,5 @@ module.exports = {
     post,
     updateLink,
     deleteLink,
+    vote,
 }

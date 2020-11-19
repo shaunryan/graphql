@@ -1,11 +1,33 @@
 
 
-function feed(parent, args, context, info) {
-    return context.prisma.link.findMany()
+async function feed(parent, args, context, info) {
+    const where = args.filter
+      ? {
+        OR: [
+          { description: { contains: args.filter }},
+          { url: { contains: args.filter}},
+        ]
+      }
+      : {}
+
+    const links = await context.prisma.link.findMany({
+      where,
+      skip: args.skip,
+      take: args.take,
+      take: args.orderBy,
+    })
+
+    const count = await context.prisma.link.count({ where })
+
+    return {
+      links,
+      count,
+    }
+
 }
 
-function link(parent, args, context) {
-    return context.prisma.link.findOne({
+async function link(parent, args, context) {
+    return await context.prisma.link.findOne({
       where: {
         id: Number(args.id)
       }
